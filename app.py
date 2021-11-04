@@ -1,6 +1,8 @@
 from flask import Flask, request, redirect, render_template
 from flask_sqlalchemy import SQLAlchemy
 from os import getenv
+from flask_wtf import FlaskForm
+from wtforms import IntegerField, StringField, SelectField, SubmitField
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///data.db'
@@ -20,33 +22,40 @@ class Employee(db.Model):
 db.drop_all()
 db.create_all()
 
+class AddEmp(FlaskForm):
+    emp_name = StringField("Name")
+    salary = IntegerField("Salary")
+    marks = IntegerField("Marks")
+    subject = SelectField("Subject", choices=[('python', 'Python'), ('java', 'Java'), ('php', 'PHP'), ('sql', 'SQL')])
+    department = SelectField('Department', choices=[('IT', 'Information technology'), ('HR', 'Human Resources'), ('sales', 'Sales'), ('training', 'Training')])
+    submit = SubmitField('Add Employee')
+
+class UpdateEmp(FlaskForm):
+    emp_name = StringField("Name")
+    salary = IntegerField("Salary")
+    marks = IntegerField("Marks")
+    subject = SelectField("Subject", choices=[('python', 'Python'), ('java', 'Java'), ('php', 'PHP'), ('sql', 'SQL')])
+    department = SelectField('Department', choices=[('IT', 'Information technology'), ('HR', 'Human Resources'), ('sales', 'Sales'), ('training', 'Training')])
+    submit = SubmitField('Update Employee')
+
 @app.route('/')
 def home():
     emps = Employee.query.all()
     return render_template('homepage.html', records=emps)
 
-@app.route('/editRecord/<int:empno>')
+@app.route('/editRecord/<int:empno>', methods=['GET', 'POST'])
 def editRecordForm(empno):
+    form = UpdateEmp()
     emp = Employee.query.filter_by(empno=empno).first()
-    return render_template('EditForm.html', record=emp)
-
-@app.route("/saveEditedRecord", methods=["POST"])
-def saveEditedRecord():
-    empno=request.form["empno"]
-    name=request.form["na"]
-    department=request.form["dept"]
-    salary=request.form["sal"]
-    subject=request.form["subject"]
-    marks=request.form["marks"]
-    emp = Employee.query.filter_by(empno=empno).first()
-    emp.name = name
-    emp.salary = salary
-    emp.dept = department
-    emp.subject = subject
-    emp.marks = marks
-    db.session.commit()
-    return redirect("/")
-
+    if request.method == 'POST':
+        emp.name = form.emp_name.data
+        emp.salary = form.salary.data
+        emp.dept = form.department.data
+        emp.subject = form.subject.data
+        emp.marks = form.marks.data
+        db.session.commit()
+        return redirect("/")
+    return render_template('EditForm.html', form=form)
 
 @app.route("/filterrecords",methods=["POST"])
 def filterrecords():
@@ -55,24 +64,21 @@ def filterrecords():
     else:
         data = Employee.query.filter_by(dept=request.form["dept"]).all()
         return render_template("Homepage.html",records=data)
-	
 
-
-@app.route("/addnewRecord")
-def addNewRecord():
-	return render_template("inputform.html")
-
-@app.route("/saveRecord",methods=["POST"])
+@app.route("/saveRecord",methods=["GET","POST"])
 def saveRecord():
-    name=request.form["na"]
-    department=request.form["dept"]
-    salary=request.form["sal"]
-    subject=request.form["subject"]
-    marks=request.form["marks"]
-    newemp = Employee(name=name, dept=department, salary=salary, subject=subject, marks=marks)
-    db.session.add(newemp)
-    db.session.commit()
-    return redirect("/")
+    form = AddEmp()
+    if request.method == 'POST':
+        name=form.emp_name.data
+        department=form.department.data
+        salary=form.salary.data
+        subject=form.subject.data
+        marks=form.marks.data
+        newemp = Employee(name=name, dept=department, salary=salary, subject=subject, marks=marks)
+        db.session.add(newemp)
+        db.session.commit()
+        return redirect("/")
+    return render_template("inputform.html", form=form)
 
 @app.route("/personaldetails/<int:empno>")
 def personalInformation(empno):
@@ -86,4 +92,4 @@ def deleteEmployee(empno):
     db.session.commit()
     return redirect("/")
 
-app.run(debug=True, host='0.0.0.0')
+app.run(debug=True)
